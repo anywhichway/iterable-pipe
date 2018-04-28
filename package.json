@@ -1,0 +1,25 @@
+{
+	"name": "iterable-pipe",
+	"version": "0.0.1",
+	"description": "Treat iterables like first class arrays without converting them. Make all array functions chainable.",
+	"private": false,
+	"isomorphic": true,
+	"keywords": [
+		"pipe",
+		"chainable",
+		"iterable"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/anywhichway/iterable-pipe.git"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"chai": "^4.1.0",
+		"mocha": "^3.4.2"
+	},
+	"engines": {
+		"node": "9.x"
+	}
+}

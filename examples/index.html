@@ -1,0 +1,18 @@
+<html>
+<head>
+<script src="../index.js"></script>
+</head>
+<body>
+Open debugger to see output.
+
+<script>
+let results = IterablePipe(new Set([1,2,3])).reverse().map(value => value * 2);
+for(const value of results()) console.log(value);
+results = IterablePipe(new Set([1,2,3,4])).map(value => value % 2 ===0 ? value : undefined);
+for(const value of results()) console.log(value);
+for(const value of results()) console.log(value);
+results = IterablePipe(new Set([1,2,3,4])).every(value => value % 2 ===0 ? value : false).map(value => value * 2);
+for(const value of results()) console.log(value);
+</script>
+</body>
+</html>
