@@ -6,13 +6,32 @@
 Open debugger to see output.
 
 <script>
-let results = IterablePipe(new Set([1,2,3])).reverse().map(value => value * 2);
-for(const value of results()) console.log(value);
-results = IterablePipe(new Set([1,2,3,4])).map(value => value % 2 ===0 ? value : undefined);
-for(const value of results()) console.log(value);
-for(const value of results()) console.log(value);
-results = IterablePipe(new Set([1,2,3,4])).every(value => value % 2 ===0 ? value : false).map(value => value * 2);
-for(const value of results()) console.log(value);
+(async function() {
+	console.log("Example1:");
+	let results = IterablePipe(new Set([1,2,3])).reverse().map(value => value * 2);
+	for await(const value of results()) console.log(value);
+	console.log("Example2:");
+	results = IterablePipe(new Set([1,2,3,4])).map(value => value % 2 ===0 ? value : undefined);
+	for await(const value of results()) console.log(value);
+	for await(const value of results()) console.log(value);
+	console.log("Example3: no result expected");
+	results = IterablePipe(new Set([1,2,3,4])).every(value => value % 2 ===0 ? value : false).map(value => value * 2);
+	for await(const value of results()) console.log(value);
+	console.log("Example4:");
+	results = IterablePipe(() => function*() { yield 1; yield 2; yield 3;}());
+	for await(const value of results()) console.log(value);
+	for await(const value of results()) console.log(value);
+	console.log("Example5:");
+	results = IterablePipe(() => async function*() { yield 1; yield 2; yield 3;}());
+	for await(const value of results()) console.log(value);
+	for await(const value of results()) console.log(value);
+	function render(template,useWith) { // render a value into a string literal template
+		return useWith ? Function("with(this) { return `" + template + "`; }").call(this) : Function("return `" + template + "`").call(this);
+	}
+	IterablePipe.pipeable(render);
+	results = IterablePipe([{name: "Joe"}]).render("Name: ${this.name}");
+	for await(const value of results()) console.log(value);
+})();
 </script>
 </body>
 </html>

@@ -1,12 +1,24 @@
 (function() {
 	"use strict";
+	
+	function flattenArray(value,depth=1,collector=[]) {
+		if(depth===0 || !Array.isArray(value)) {
+			collector.push(value);
+		} else if(Array.isArray(value) && depth>0) {
+			depth--;
+			for(const item of value) {
+				flattenArray(item,depth,collector);
+			}
+		}
+		return collector;
+	}
+	
 	function IterablePipe(iterable) {
 		if(!this || !(this instanceof IterablePipe)) return new IterablePipe(iterable);
 		this.steps = [];
-		const me = this;
-		this.iterable = function() { return me.pipe(iterable); };
+		this.iterable = (function() { return this.pipe(typeof(iterable)==="function" ? iterable() : iterable); }).bind(this);
 		for(const fname in IterablePipe.prototype) {
-			Object.defineProperty(this.iterable,fname,{enumerable:false,configurable:true,writeable:true,value:IterablePipe.prototype[fname].bind(this)});
+			Object.defineProperty(this.iterable,fname,{enumerable:false,configurable:true,writable:true,value:IterablePipe.prototype[fname].bind(this)})
 		}
 		return this.iterable;
 	}
@@ -16,17 +28,32 @@
 			return this.iterable;
 		}
 	}
-	IterablePipe.prototype.pipe = function*(values) {
-		this.prvs = function*() { for (const value of values) yield value; }();
+	IterablePipe.prototype.pipe = function(values) {
+		this.prvs = async function*() { for await(const value of values) yield value; }();
 		for(const step of this.steps) {
 			const prvs = this.prvs,
-				itrtr = prvs[Symbol.iterator] ? prvs : function*() { yield prvs; }();
+				itrtr = prvs[Symbol.asyncIterator] ? prvs : async function*() { yield prvs; }();
 			let f;
 			if(Object.getPrototypeOf(step.f)===Object.getPrototypeOf(function(){})) {
-				f = function*(...args) {
-					for (const value of this) {
+				f = async function*(...args) {
+					for await(const value of this) {
 						const rslt = step.f.call(value,...args);
 						if(rslt!==undefined) yield rslt;
+					}
+				}
+			} else if(Object.getPrototypeOf(step.f)===Object.getPrototypeOf(async function(){})) {
+				f = async function*(...args) {
+					for await(const value of this) {
+						const rslt = step.f.call(value,...args);
+						if(rslt!==undefined) yield rslt;
+					}
+				}
+			} else if(Object.getPrototypeOf(step.f)===Object.getPrototypeOf(function*(){})) {
+				f = async function*(...args) {
+					for await(const value of this) {
+						for(const rslt of step.f.call(value,...args)) {
+							if(rslt!==undefined) yield rslt;
+						}
 					}
 				}
 			} else {
@@ -34,58 +61,81 @@
 			}
 			this.prvs = f.call(prvs,...step.args);
 		}
-		const prvs = this.prvs,
-			itrtr = prvs[Symbol.iterator] ? prvs : function*() { yield prvs; }();
-		for (const rslt of itrtr) yield rslt;
+		const prvs = this.prvs;
+		return prvs[Symbol.asyncIterator] ? prvs : async function*() { yield prvs; }();
 	}
-	function* concat(...add) {
-		for (let item of this) {
-			yield item;
+	IterablePipe.prototype.toArray = async function() {
+		const values = [];
+		for await(const value of this.iterable()) values.push(value);
+		return values;
+	}
+	async function* concat(...add) {
+		for await(const value of this) {
+			yield value;
 		}
-		for(let item of add) {
-			if(Array.isArray(item)) {
-				for(let value of item) {
+		for(let value of add) {
+			if(Array.isArray(value)) {
+				for(let value of value) {
 					yield value;
 				}
 			} else {
-				yield item;
+				yield value;
 			}
 		}
 	}
-	function* entries(f) {
+	async function* count(f,block) {
+		if(block) {
+			const values = [];
+			for await(const value of this) {
+				values.push(value);
+			}
+			f(values.length);
+			for(const value of values) {
+				yield value;
+			}
+		} else {
+			let i = 0;
+			for await(const value of this) {
+				yield value;
+				i++;
+			}
+			f(i);
+		}
+	}
+	async function* entries() {
 		let i = 0;
-		for(const item of this) {
-			yield [i,item];
+		for await(const value of this) {
+			yield [i,value];
 			i++;
 		}
 	}
-	function* every(f) {
-		const items = [];
-		for(let value of this) {
-			if(!(f(value))) return;
-			items.push(value);
+	async function* every(f) {
+		const values = [];
+		for await(const value of this) {
+			if(!(await f(value))) return;
+			values.push(value);
 		}
-		for(let item of items) {
-			yield item; 
-		}
-	}
-	function* filter(f) {
-		for(let item of this) {
-			if(f(item)) yield item;
+		for(let value of values) {
+			yield value; 
 		}
 	}
-	function* find(f) {
-		for(const item of this) {
-			if(f(item)) {
-				yield item;
+	async function* filter(f) {
+		for await(const value of this) {
+			if(await f(value)) yield value;
+		}
+	}
+	async function* find(f) {
+		for await(const value of this) {
+			if(await f(value)) {
+				yield value;
 				return;
 			}
 		}
 	}
-	function* findIndex(f) {
+	async function* findIndex(f) {
 		let i = 0;
-		for(const item of this) {
-			if(f(item)) {
+		for await(const value of this) {
+			if(await f(value)) {
 				yield i;
 				return;
 			}
@@ -93,26 +143,42 @@
 		}
 		yield -1;
 	}
-	function* flatten() {
-		for(let item of this) {
-			if(Array.isArray(item)){
-				for(let value of item) yield value;
+	async function* flatten(depth) {
+		for await(const value of this) {
+			if(Array.isArray(value)){
+				for(const item of flattenArray(value,depth)) {
+					yield item;
+				}
 			} else {
-				yield item;
+				yield value;
 			}
 		}
 	}
-	function* forEach(f) {
+	async function* flatMap(f) {
 		let i = 0;
-		for(const item of this) {
-			f(item,i++,this);
-			if(item===undefined) continue;
-			yield item; 
+		for await(const value of this) {
+			const result = await f(value,i++);
+			if(result===undefined) continue;
+			if(Array.isArray(result)) {
+				for(const value of flattenArray(result)) {
+					yield value;
+				}
+			} else {
+				yield result;
+			}
 		}
 	}
-	function* indexOf(value) {
+	async function* forEach(f) {
 		let i = 0;
-		for(const item of this) {
+		for await(const value of this) {
+			f(value,i++,this);
+			if(value===undefined) continue;
+			yield value; 
+		}
+	}
+	async function* indexOf(value) {
+		let i = 0;
+		for await(const item of this) {
 			if(item===value) {
 				yield i;
 				return;
@@ -121,16 +187,16 @@
 		}
 		yield -1;
 	}
-	function* keys() {
+	async function* keys() {
 		let i = 0;
-		for(const item of this) {
+		for await(const value of this) {
 			yield i++;
 		}
 	}
-	function* lastIndexOf(value) {
+	async function* lastIndexOf(value) {
 		let i = 0,
 			lastindex = -1;
-		for(const item of this) {
+		for await(const item of this) {
 			if(item===value) {
 				lastindex = i;
 			}
@@ -138,71 +204,56 @@
 		}
 		yield lastindex;
 	}
-	function* map(f) {
+	async function* map(f) {
 		let i = 0;
-		for(const item of this) {
-			const value = f(item,i++);
-			if(value===undefined) continue;
-			yield value;
+		for await(const value of this) {
+			const result = await f(value,i++);
+			if(result===undefined) continue;
+			yield result;
 		}
 	}
-	function* nth(index) {
-		let i = 0;
+	async function* push(value,f) {
 		const values = [];
-		for(const item of this) {
-			if(index<0) {
-				values.push(item)
-			} else if(i===index) {
-				yield item;
-				return;
-			}
-			i++;
-		}
-		if(values.length>0) { // negative index
-			yield values[values.length+index];
-		}
-	}
-	function* push(value,f) {
-		const values = [];
-		for(let value of this) {
-			values.push(value);
+		for await(const item of this) {
+			values.push(item);
 		}
 		values.push(value);
 		if(f) f(values.length);
-		for(const value of values) {
-			yield value;
+		for(const item of values) {
+			yield item;
 		}
 	}
-	function* pop(f) {
-		let previous, some;
-		for(let item of this) {
+	async function* pop(f) {
+		let previous, some, i = 0;
+		for await(const value of this) {
+			i++;
 			if(some) {
 				yield previous;
 			}
-			previous = item;
+			previous = value;
 			some = true;
 		}
-		if(some && f) f(previous);
+		if(some && f) f(previous,i);
 	}
-	function reduce(f,init) {
+	async function* reduce(f,init) {
 		let i = 0;
 		const generator = this;
 		let accum = Array.isArray(init) ? init.slice() : typeof(init)==="object" ? Object.assign({},init) : init;
-		for(let item of this) {
+		for await(const value of this) {
 			if(init===undefined) {
-				accum = item;
+				accum = value;
 				init = false;
 			} else {
-				accum = f(accum,item);
+				accum = await f(accum,value);
 			}
 		}
-		return accum;
+		yield accum;
 	}
-	function reduceRight(f,init) {
+	async function* reduceRight(f,init) {
 		let i = 0;
 		const values = [];
-		for(let item of this) {
-			values.push(item);
+		for await(const value of this) {
+			values.push(value);
 		}
 		let accum = Array.isArray(init) ? init.slice() : typeof(init)==="object" ? Object.assign({},init) : init;
 		while(values.length>0) {
@@ -211,136 +262,134 @@
 				accum = value;
 				init = false;
 			} else {
-				accum = f(accum,value);
+				accum = await f(accum,value);
 			}
 		}
 		return accum;
 	}
-	function* reverse() {
+	async function* reverse() {
 		const values = [];
-		for(const value of this) {
+		for await(const value of this) {
 			values.push(value);
 		}
-		let i = 0;
 		while(values.length) {
 			yield values.pop();
 		}
 	}
-	function* shift(f) {
+	async function* shift(f) {
 		let first = true;
-		for(const item of this) {
+		for await(const value of this) {
 			if(first) {
-				if(f) f(item);
+				if(f) f(value);
 				first = false;
 			} else {
-				yield item;
+				yield value;
 			}
 		} 
 	}
-	function* slice(start,end) {
+	async function* slice(start,end) {
 		if(start<0 || end<0) {
 			const collected = [];
-			for(const value of this) {
+			for await(const value of this) {
 				collected.push(value);
 			}
-			if(start<0 && end<0) {
-				const values = [];
-				for(const value of collected.reverse().slice(start*-1,end*-1)) {
-					values.push(value);
-				}
-				for(const value of values) {
-					yield function*() {
-						yield value;
-					}
-				}
-			} else {
-				for(const value of collected.slice(start)) {
-					yield function*() {
-						yield value;
-					}
-				}
+			for(const value of collected.slice(start,end)) {
+					yield value;
 			}
 			return;
 		}
 		let count = 0;
-		for(const item of this) {
+		for await(const value of this) {
 			if(count>=start && (end===undefined || count<end)) {
-				yield item;
+				yield value;
 			}
 			count++;
 		}
 	}
-	function* some(f) {
-		const items = [];
-		for(let item of this) {
-			if(f(item)) some = true;
+	async function* some(f) {
+		const values = [];
+		let some;
+		for await(const value of this) {
+			if(await f(value)) some = true;
 			if(some) {
-				while(items.length>0) {
-					yield items.shift();
+				while(values.length>0) {
+					yield values.shift();
 				}
-				yield item; 
+				yield value; 
 			} else {
-				items.push(item);
+				values.push(value);
 			}
 		}
 	}
-	function* sort(f) {
-		const items = [];
-		for(let item of this) {
-			items.push(item);
+	async function* sort(f) {
+		const values = [];
+		for await(const value of this) {
+			values.push(value);
 		}
-		items.sort(f);
-		for(let item of items) {
-			yield item; 
+		await values.sort(f);
+		for(let value of values) {
+			yield value; 
 		}
 	}
-	function* splice(start,deleteCount,...add) {
+	async function* splice(start,deleteCount,...add) {
 		let count = 0, deleted = 0;
-		for(let item of this) {
+		for await(const value of this) {
 			if(count<start) {
-				yield item;
+				yield value;
 			}
 			if(count>=start) {
 				 if(deleted>=deleteCount) {
-					yield item;
+					yield value;
 				 }
 				 deleted++;
 			}
 			count++;
 		}
-		for(let item of add) {
-			yield item;
-		}
-	}
-	function* unshift(value,f) {
-		const values = [value];
-		for(const value of this) {
-			values.push(value);
-		}
-		if(f) f(values.length);
-		for(const value of values) {
+		for(let value of add) {
 			yield value;
 		}
 	}
-	function* values(value) {
-		for(const item of this) {
-			yield item;
+	async function* unshift(value,f,block) {
+		if(block) {
+			const values = [value];
+			for await(const value of this) {
+				values.push(value);
+			}
+			if(f) f(values.length);
+			for(const value of values) {
+				yield value;
+			}
+		} else {
+			yield value;
+			let i = 0;
+			for await(const value of this) {
+				i++;
+				yield value;
+			}
+			if(f) f(i);
+		}
+	}
+	async function* values(f) {
+		for await(const value of this) {
+			if(f) f(value);
+			yield value;
 		}
 	}
 	
 	IterablePipe.pipeable(concat);
+	IterablePipe.pipeable(count);
 	IterablePipe.pipeable(entries);
 	IterablePipe.pipeable(every);
 	IterablePipe.pipeable(filter);
 	IterablePipe.pipeable(find);
 	IterablePipe.pipeable(findIndex);
 	IterablePipe.pipeable(flatten);
+	IterablePipe.pipeable(flatMap);
 	IterablePipe.pipeable(forEach);
 	IterablePipe.pipeable(indexOf);
 	IterablePipe.pipeable(keys);
 	IterablePipe.pipeable(lastIndexOf);
 	IterablePipe.pipeable(map);
-	IterablePipe.pipeable(nth);
 	IterablePipe.pipeable(push);
 	IterablePipe.pipeable(pop);
 	IterablePipe.pipeable(reduce);
