@@ -127,7 +127,11 @@ Name: Joe
 
 4) async function*() { }
 
-The following array methods are supported. Unless otherwise marked with an asterisk, `*`, each passes down the pipe the same value it would return if the source were an array. If the function takes an argument the return value of which will not impact the values passed down the pipe, it is called an forgotten. If the return value might impact the values passed it is called and returned Promises are awaited. This means you can apply potentialy complex, time consuming, asynchronous methods to sorting and searching without locking-up the JavaScript event thread:
+The following array methods are supported. 
+
+Unless otherwise marked with an asterisk, `*`, each passes down the pipe the same value it would return if the source were an array. 
+
+If the function takes an argument the return value of which will not impact the values passed down the pipe, it is called and forgotten. If the return value might impact the values passed it is called and returned Promises are awaited. This means you can apply potentialy complex, time consuming, asynchronous methods to sorting and searching without locking-up the JavaScript event thread:
 
 `concat(...args)` - Adds `args` to the end of the values passed down the pipe.
 
