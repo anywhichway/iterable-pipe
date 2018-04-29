@@ -1,4 +1,4 @@
-# iterable-pipe Treat iterables as first class arrays without converting them. Make all array functions chainable.
+# iterable-pipe Treat iterables/generators like arrays without converting them. Make all array functions chainable.
 
 IterablePipe:
 
@@ -38,7 +38,9 @@ You can use the code un-transpiled in the most recent versions of Chrome and Fir
 Just call `IterablePipe(Iterable)` and chain any other array functions.
 
 ```
-const results = IterablePipe(new Set([1,2,3])).reverse().map(value => value *2);
+const results = IterablePipe(new Set([1,2,3]))
+	.reverse()
+	.map(value => value *2);
 for await(const value of results()) console.log(value);
 ```
 
@@ -53,7 +55,8 @@ prints:
 Returning `undefined` from `map` function removes the value from the chain.
 
 ```
-const results = IterablePipe(new Set([1,2,3,4])).map(value => value % 2 ===0 ? value : undefined);
+const results = IterablePipe(new Set([1,2,3,4]))
+	.map(value => value % 2 ===0 ? value : undefined);
 for await(const value of results()) console.log(value);
 ```
 
@@ -67,7 +70,9 @@ prints:
 Using `every` or `some` eliminates all results unless satisfied.
 
 ```
-const results = IterablePipe(new Set([1,2,3,4])).every(value => value % 2 ===0 ? value : false).map(value => value * 2);
+const results = IterablePipe(new Set([1,2,3,4]))
+	.every(value => value % 2 ===0 ? value : false)
+	.map(value => value * 2);
 for await(const value of results()) console.log(value);
 ```
 
@@ -94,7 +99,9 @@ And, you can add your own functions!
 
 ```
 function render(template,useWith) { // render a value into a string literal template
-	return useWith ? Function("with(this) { return `" + template + "`; }").call(this) : Function("return `" + template + "`").call(this);
+	return useWith 
+		? Function("with(this) { return `" + template + "`; }").call(this) 
+		: Function("return `" + template + "`").call(this);
 }
 IterablePipe.pipeable(render);
 const results = IterablePipe([{name: "Joe"}]).render("Name: ${this.name}");

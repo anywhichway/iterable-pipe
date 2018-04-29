@@ -1,7 +1,7 @@
 {
 	"name": "iterable-pipe",
 	"version": "0.0.2",
-	"description": "Treat iterables like first class arrays without converting them. Make all array functions chainable.",
+	"description": "Treat iterables/generators like arrays without converting them. Make all array functions chainable.",
 	"private": false,
 	"isomorphic": true,
 	"keywords": [
