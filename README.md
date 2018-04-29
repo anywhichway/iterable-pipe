@@ -153,9 +153,9 @@ If the function takes an argument the return value of which will not impact the 
 
 `flatten(i=1)` - Passes down the pipe all values flattened to the level `i`. If a value is not an array, it is passed down the pipe.
 
-`flatMap(f)` -  Passes down the pipe the flattend version of the value returned by `f(value)` unless the value returned is `undefined`.
+`flatMap(f)` -  Passes down the pipe the flattend version of the value returned by `f(value)` unless the value returned is `undefined`. Awaits `f`.
 
-`forEach(f)` - Calls `f(value,index,iterator)` on each value it is passed and passes all values down the pipe.
+`forEach(f)` - Calls `f(value,index,iterator)` on each value it is passed and passes all values down the pipe. Does not await `f`.
 
 `indexOf(value)` - Passes down the pipe the index of `value` and `-1` if it does not exist in the pipe. It will force resolution up to the point it finds `value` and skip all other values.
 
@@ -163,13 +163,13 @@ If the function takes an argument the return value of which will not impact the 
 
 `lastIndexOf(value)` - Passes down the pipe the last index of `value` and `-1` if it does not exist in the pipe. It will force resolution up to of all possible values in the pipe.
 
-`map(f)` - Passes down the pipe the value returned by `f(value)` unless the value returned is `undefined`.
+`map(f)` - Passes down the pipe the value returned by `f(value)` unless the value returned is `undefined`. Awaits `f`.
 
-*`push(value[,f])` - Adds value as the last value passed down the pipe. If `f` is provided, calls `f(count)` with the final count of values in the pipe.
+*`push(value[,f])` - Adds value as the last value passed down the pipe. If `f` is provided, calls `f(count)` with the final count of values in the pipe. Does not await `f`.
 
-*`pop(f)` - Removes the last value from the pipe. If `f` is provided calls `f(value,count)` with the value and final count of values in the pipe. To pass just the last value out of the pipe use `slice(-1,)`.
+*`pop(f)` - Removes the last value from the pipe. If `f` is provided calls `f(value,count)` with the value and final count of values in the pipe. To pass just the last value out of the pipe use `slice(-1,)`. Does not await `f`.
 
-`reduce(f[,init])` - Passes down the pipe the value returned by `f(value)` unless the value returned is `undefined`.
+`reduce(f[,init])` - Passes down the pipe the value returned by `f(value)` unless the value returned is `undefined`. Awaits `f`.
 
 `reverse()` - Reverses the order of values flowing down the pipe. Forces resolution of all values in the pipe.
 
@@ -179,13 +179,13 @@ If the function takes an argument the return value of which will not impact the 
 
 `some(f)` - Stops passing values down the pipe unless some value returns truthy for `f(value)`. Forces resolution of all values.
 
-`sort(f)` - Sorts values is according to string Unicode code points (ascending) unless `f` is provided. If `f` is provided it is called with two adjacent elements as `f(a,b)`. if is returns less than 0, a is placed before b. If it returns 0, no change is made. If it returns greater than zero, b is placed before a. Forces resolution of all values.
+`sort(f)` - Sorts values is according to string Unicode code points (ascending) unless `f` is provided. If `f` is provided it is called with two adjacent elements as `f(a,b)`. if is returns less than 0, a is placed before b. If it returns 0, no change is made. If it returns greater than zero, b is placed before a. Forces resolution of all values. Does not await `f`.
 
 `splice(start[,deleteCount=0[,item1[,item2[,...]]]])` - Passes all values prior to and including `start`. After `start` skips `deleteCount` elements and then adds items `itemN`.
 
-*`unshift(value[,f[,block])` - Adds `value` as the first value passed down the array. If `f` is provided `f(count)` will be called with the final count close to the end of processing. If `block` is truthy, resolution of all values will be forced and `f` will be called immediatley.
+*`unshift(value[,f[,block])` - Adds `value` as the first value passed down the array. If `f` is provided `f(count)` will be called with the final count close to the end of processing. If `block` is truthy, resolution of all values will be forced and `f` will be called immediatley. Does not await `f`.
 
-`values(f)` - Passes all values down the pipe. If `f` is provided calls `f(value)` To pass the values of objects in the pipe use, `flatMap(value => typeof(value)==="object" ? Object.values(value) : [])`.
+`values(f)` - Passes all values down the pipe. If `f` is provided calls `f(value)` To pass the values of objects in the pipe use, `flatMap(value => typeof(value)==="object" ? Object.values(value) : [])`. Does not await `f`.
 	
 
 # Release History (reverse chronological order)
