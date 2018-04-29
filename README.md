@@ -117,6 +117,8 @@ Name: Joe
 
 # API
 
+## Custom Functions
+
 `IterablePipe.pipeable(function)` - You can pass in any of the following function types to make the function available as part of a pipe:
 
 1) function() {}
@@ -126,6 +128,8 @@ Name: Joe
 3) function*() {}
 
 4) async function*() { }
+
+## Array Methods
 
 The following array methods are supported. 
 
